@@ -158,7 +158,7 @@ import hydra
 from jax import jit
 import jax.numpy as jnp
 from jax import device_put, lax
-
+import os 
 # if double precision
 #from jax.config import config
 #config.update("jax_enable_x64", True)
@@ -173,6 +173,9 @@ def _pass(carry):
 # Init arguments with Hydra
 @hydra.main(config_path="config", config_name="config")
 def main(cfg: DictConfig) -> None:
+    if not os.path.exists(cfg.args.save): 
+        os.makedirs(cfg.args.save) 
+
     # physical constants
     gamma = cfg.args.gamma  # 3D non-relativistic gas
     gammi1 = gamma - 1.
@@ -183,6 +186,7 @@ def main(cfg: DictConfig) -> None:
     gammi3 = gamma - 3.
     gampl3 = gamma + 3.
 
+    eta = cfg.args.eta
     visc = cfg.args.zeta + cfg.args.eta / 3.
 
     BCs = ['trans', 'periodic', 'KHI']  # reflect
@@ -211,6 +215,7 @@ def main(cfg: DictConfig) -> None:
     tc = jnp.arange(it_tot + 1) * cfg.args.dt_save
 
     def evolve(Q):
+        # initialization
         t = cfg.args.ini_time
         tsave = t
         steps = 0
@@ -226,8 +231,10 @@ def main(cfg: DictConfig) -> None:
                 i_save += 1
 
             if steps%cfg.args.show_steps==0 and cfg.args.if_show:
-                print('now {0:d}-steps, t = {1:.3f}, dt = {2:.3f}'.format(steps, t, dt))
-
+                print('now {0:d}-steps, t = {1:.3f}, dt = {2:.8f}'.format(steps, t, dt))
+            
+            print(t, tsave, dt)
+            
             carry = (Q, t, dt, steps, tsave)
             Q, t, dt, steps, tsave = lax.fori_loop(0, cfg.args.show_steps, simulation_fn, carry)
 
